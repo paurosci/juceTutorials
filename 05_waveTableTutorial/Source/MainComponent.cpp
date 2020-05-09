@@ -13,8 +13,27 @@ MainComponent::MainComponent()
 {
     // Make sure you set the size of the component after
     // you add any child components.
-    setSize (800, 600);
-
+    setSize (800, 100);
+    freqSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+    freqSlider.setRange(50.0, 500.0);
+    freqSlider.setNumDecimalPlacesToDisplay(2);
+    ampSlider.setSliderStyle(Slider::SliderStyle::LinearHorizontal);
+    ampSlider.setRange(0, 0.5);
+    ampSlider.setNumDecimalPlacesToDisplay(2);
+    addAndMakeVisible(freqSlider);
+    addAndMakeVisible(ampSlider);
+    
+    freqSlider.addListener(this);
+    freqSlider.setValue(200.0);
+    freqSlider.setTextValueSuffix("Hz");
+    freqLabel.setText("Frequency:", dontSendNotification);
+    freqLabel.attachToComponent(&freqSlider, true);
+    
+    ampSlider.addListener(this);
+    ampSlider.setValue(0.25);
+    ampLabel.setText("Amplitude:", dontSendNotification);
+    ampLabel.attachToComponent(&ampSlider, true);
+    
     // Some platforms require permissions to open input channels so request that here
     if (RuntimePermissions::isRequired (RuntimePermissions::recordAudio)
         && ! RuntimePermissions::isGranted (RuntimePermissions::recordAudio))
@@ -35,14 +54,20 @@ MainComponent::~MainComponent()
     shutdownAudio();
 }
 
+void MainComponent::updateFrequency()
+{
+    increment = frequency * wtSize / currentSampleRate;
+    phase = fmod((phase + increment),wtSize);
+}
+
 //==============================================================================
 void MainComponent::prepareToPlay (int samplesPerBlockExpected, double sampleRate)
 {
-    frequency = 440;
     phase = 0;
     wtSize = 1024;
-    increment = frequency * wtSize / sampleRate;
-    amplitude = 0.25;
+    frequency = freqSlider.getValue();
+    amplitude = ampSlider.getValue();
+    currentSampleRate = sampleRate;
     
     // one cycle of a sine wave
     for ( int i=0; i < wtSize; i++)
@@ -61,7 +86,7 @@ void MainComponent::getNextAudioBlock (const AudioSourceChannelInfo& bufferToFil
     {
         leftSpeaker[sample] = waveTable[(int)phase] * amplitude;
         rightSpeaker[sample] = waveTable[(int)phase] * amplitude;
-        phase = fmod((phase + increment),wtSize);
+        updateFrequency();
     }
 }
 
@@ -80,4 +105,7 @@ void MainComponent::paint (Graphics& g)
 
 void MainComponent::resized()
 {
+    const int labelSpace = 100;
+    freqSlider.setBounds(labelSpace, 20, getWidth() - 100, 20);
+    ampSlider.setBounds(labelSpace, 50, getWidth() - 100, 20);
 }
